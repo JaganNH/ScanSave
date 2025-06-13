@@ -2,82 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>One-Time QR Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>QR Code Scanner</title>
   <style>
-    #reader { width:300px; margin:auto; }
-    #controls { text-align:center; margin:10px; }
-    table { width:80%; margin:auto; border-collapse: collapse; }
-    th,td { border:1px solid #ccc; padding:8px; text-align:center; }
-	 .footer {
-            background-color: #34495e;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            margin-top: 20px;
-        }
+    #reader {
+      width: 300px;
+      margin: auto;
+    }
+    #controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+    #log {
+      margin-top: 20px;
+      width: 80%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
   </style>
 </head>
-<body bgcolor="#E3BD33">
-  <h1 style="text-align:center;">Scan & Save</h1>
+<body>
+  <h1 style="text-align:center;">QR Code Scanner</h1>
   <div id="reader"></div>
   <div id="controls">
-    <button id="start">Start</button>
-    <button id="stop" disabled>Stop</button>
-    <button id="export">Export Excel</button>
+    <button id="start-btn">Start Scan</button>
+    <button id="stop-btn" disabled>Stop Scan</button>
+    <button id="download-btn">Download Excel</button>
   </div>
-  <table>
-    <thead><tr><th>Data</th><th>Timestamp</th></tr></thead>
-    <tbody id="results"></tbody>
-  </table>
+  <div id="log">
+    <table id="log-table">
+      <thead>
+        <tr>
+          <th>QR Code Data</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Scanned data will appear here -->
+      </tbody>
+    </table>
+  </div>
 
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    const startBtn = document.getElementById('start');
-    const stopBtn  = document.getElementById('stop');
-    const exportBtn= document.getElementById('export');
-    const tbody    = document.getElementById('results');
-    let scanner, record = [];
+    // JavaScript code will go here
+	
+	const startBtn = document.getElementById('start-btn');
+const stopBtn = document.getElementById('stop-btn');
+const downloadBtn = document.getElementById('download-btn');
+const logTableBody = document.querySelector('#log-table tbody');
+let html5QrCode;
+let scanData = [];
 
-    startBtn.onclick = () => {
-      scanner = new Html5Qrcode("reader");
-      scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox:250 },
-        (msg) => {
-          const time = new Date().toLocaleString();
-          record.push({ data: msg, time });
-          const r = tbody.insertRow();
-          r.insertCell().innerText = msg;
-          r.insertCell().innerText = time;
-          scanner.stop(); // stop immediately after reading :contentReference[oaicite:1]{index=1}
-          stopBtn.disabled = true;
-          startBtn.disabled = false;
-        },
-        err => { /* scan errors can be ignored */ }
-      ).then(() => {
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-      }).catch(console.error);
-    };
+startBtn.addEventListener('click', () => {
+  html5QrCode = new Html5Qrcode("reader");
+  const config = { fps: 10, qrbox: 250 };
 
-    stopBtn.onclick = () => {
-      if (scanner) {
-        scanner.stop().then(() => {
-          startBtn.disabled = false;
-          stopBtn.disabled = true;
-        }).catch(console.error);
-      }
-    };
+  html5QrCode.start(
+    { facingMode: "environment" },
+    config,
+    qrCodeMessage => {
+      const timestamp = new Date().toLocaleString();
+      scanData.push({ data: qrCodeMessage, time: timestamp });
 
-    exportBtn.onclick = () => {
-      if (!record.length) return alert('No scans to export.');
-      const ws = XLSX.utils.json_to_sheet(record);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "QR Scans");
-      XLSX.writeFile(wb, "qr_scans.xlsx");
-    };
+      const row = logTableBody.insertRow();
+      const cell1 = row.insertCell(0);
+      const cell2 = row.insertCell(1);
+      cell1.textContent = qrCodeMessage;
+      cell2.textContent = timestamp;
+    },
+    errorMessage => {
+      // Handle scan errors or ignore
+    }
+  ).then(() => {
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+  }).catch(err => {
+    console.error("Error starting QR code scanner:", err);
+  });
+});
+
+stopBtn.addEventListener('click', () => {
+  html5QrCode.stop().then(() => {
+    html5QrCode.clear();
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  }).catch(err => {
+    console.error("Error stopping QR code scanner:", err);
+  });
+});
+
+downloadBtn.addEventListener('click', () => {
+  if (scanData.length === 0) {
+    alert("No data to export!");
+    return;
+  }
+
+  const worksheet = XLSX.utils.json_to_sheet(scanData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Scanned Data");
+  XLSX.writeFile(workbook, "scanned_data.xlsx");
+});
+
+	
   </script>
-   <div class="footer">Developed by: V.Jagannath. N. Hugar</div>
 </body>
 </html>
